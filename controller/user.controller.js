@@ -36,6 +36,35 @@ export const register = async (req, res) => {
     });
   }
 };
+
+export const verifyUser = async (req, res) => {
+  try {
+    //get token from url
+    const { token } = req.params;
+    //validate
+    if (!token)
+      return res.status(400).json({ message: 'Invalid token', success: false });
+    //find user based on token
+    const user = await User.findOne({ verificationToken: token });
+    //if not
+    if (!user)
+      return res.status(400).json({ message: 'Invalid token', success: false });
+    //set isVarified field->true
+    user.isVerified = true;
+    //remove verification token
+    user.verificationToken = undefined;
+    //save
+    await user.save();
+    //return response
+    res.status(200).json({ message: 'Verification successful', success: true });
+  } catch (error) {
+    res.status(400).json({
+      message: 'Something went wrong',
+      error: error.message,
+      success: false,
+    });
+  }
+};
 export const login = async (req, res) => {
   try {
     res.send('login');
