@@ -33,12 +33,18 @@ const userSchema = new mongoose.Schema(
       type: Date,
     },
   },
-  { timestams: true }
+  { timestamps: true }
 );
 
 userSchema.pre('save', async function () {
-  if (this.isModified('password')) {
-    this.password = await bcrypt.hash(this.password, 10);
+  try {
+    if (this.isModified('password')) {
+      this.password = await bcrypt.hash(this.password, 10);
+    }
+  } catch (error) {
+    console.error(
+      'Something went wrong while saving hashed password in database'
+    );
   }
 });
 

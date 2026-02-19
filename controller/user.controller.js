@@ -8,7 +8,7 @@ export const register = async (req, res) => {
     // get user input -> name,email,password
     const { name, email, password } = req.body;
     // validate user input
-    if (!name.trim() || !email.trim() || !password.trim())
+    if (!name || !email || !password)
       return res.status(400).send('All fields are required');
     // check if user already exist
     const existingUser = await User.findOne({ email });
@@ -31,7 +31,7 @@ export const register = async (req, res) => {
     user.verificationToken = token;
     await user.save();
     // send verification email
-    sendMail(user.email, token);
+    await sendMail(user.email, token);
 
     res
       .status(201)
@@ -77,7 +77,7 @@ export const login = async (req, res) => {
   try {
     // get user input -> email,password & validate
     const { email, password } = req.body;
-    if (!email.trim() || !password.trim())
+    if (!email || !password)
       return res
         .status(400)
         .json({ message: 'all fields are required', success: 'false' });
@@ -109,13 +109,13 @@ export const login = async (req, res) => {
     const cookieOptions = {
       httpOnly: true,
       secure: true,
-      maxAge: 24 * 3400 * 1000,
+      maxAge: 24 * 3600 * 1000,
     };
     res.cookie('token', jwtToken, cookieOptions);
     res.status(200).json({
       success: true,
       message: 'user login successfully',
-      token,
+      token: jwtToken,
       user: {
         id: user._id,
         role: user.role,
@@ -168,19 +168,21 @@ export const logOut = async (req, res) => {
 export const forgotPassword = async (req, res) => {
   try {
     // get email
-    const { email } = req.email;
+    const { email } = req.body;
     // find user based on email
     const user = await User.findOne({ email });
     if (!user)
-      return res.json(400).json({ success: false, message: 'user not found' });
+      return res
+        .status(400)
+        .json({ success: false, message: 'user not found' });
     // reset token + reset expiry => Date.now() + 10 * 60 * 1000 ==> user.save()
     const token = crypto.randomBytes(32).toString('hex');
-    const expiry = new Date.now() + 10 * 60 * 1000;
+    const expiry = Date.now() + 10 * 60 * 1000;
     user.resetPasswordToken = token;
     user.resetPasswordExpire = expiry;
     await user.save();
     // send mail
-    sendMail(user.email, token);
+    await sendMail(user.email, token);
     return res
       .status(200)
       .json({ success: true, message: 'email with token sent' });
@@ -209,6 +211,9 @@ export const resetPassword = async (req, res) => {
     user.resetPasswordExpire = undefined;
     //save
     await user.save();
+    res
+      .status(200)
+      .json({ success: true, message: 'password reset successfull' });
   } catch (error) {
     return res.status(400).json({
       message: 'Something went wrong while reset-password',
