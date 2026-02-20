@@ -12,14 +12,20 @@ export const register = async (req, res) => {
       return res.status(400).send('All fields are required');
     // check if user already exist
     const existingUser = await User.findOne({ email });
-    if (existingUser) return res.status(400).send('User already exists');
+    if (existingUser)
+      return res
+        .status(400)
+        .json({ success: false, message: 'user already exists' });
     // create new user
     const user = await User.create({
       name,
       email,
       password,
     });
-    if (!user) return res.status(400).send('User not created');
+    if (!user)
+      return res
+        .status(400)
+        .json({ success: false, message: 'user not found' });
     // create verification token & save in database
     const token = crypto.randomBytes(32).toString('hex');
     user.verificationToken = token;
@@ -123,5 +129,90 @@ export const login = async (req, res) => {
     return res
       .status(400)
       .json({ message: 'Something went wrong while login', success: 'false' });
+  }
+};
+
+export const getMe = async (req, res) => {
+  try {
+    const data = req.user;
+    const user = await User.findById(req.user.id).select('-password');
+    if (!user)
+      return res.status(400).json({
+        success: false,
+        message: 'user not found',
+      });
+    res.status(200).json({
+      success: true,
+      user,
+    });
+  } catch (error) {
+    return res.status(400).json({
+      message: 'Something went wrong while getting user profile',
+      success: false,
+    });
+  }
+};
+export const logOut = async (req, res) => {
+  try {
+    res.cookie('token', '', {});
+    res.status(200).json({
+      success: true,
+      message: 'Loggedout successfully',
+    });
+  } catch (error) {
+    return res
+      .status(400)
+      .json({ message: 'Something went wrong while logout', success: false });
+  }
+};
+export const forgotPassword = async (req, res) => {
+  try {
+    // get email
+    const { email } = req.email;
+    // find user based on email
+    const user = await User.findOne({ email });
+    if (!user)
+      return res.json(400).json({ success: false, message: 'user not found' });
+    // reset token + reset expiry => Date.now() + 10 * 60 * 1000 ==> user.save()
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiry = new Date.now() + 10 * 60 * 1000;
+    user.resetPasswordToken = token;
+    user.resetPasswordExpire = expiry;
+    await user.save();
+    // send mail
+    sendMail(user.email, token);
+    return res
+      .status(200)
+      .json({ success: true, message: 'email with token sent' });
+  } catch (error) {
+    return res.status(400).json({
+      message: 'Something went wrong while forgot-password',
+      success: false,
+    });
+  }
+};
+export const resetPassword = async (req, res) => {
+  try {
+    // collect token from params
+    const { token } = req.params;
+    // password from req.body
+    const { password } = req.body;
+    // find user
+    const user = await User.findOne({
+      resetPasswordToken: token,
+      resetPasswordExpire: { $gt: Date.now() },
+    });
+    //set password in user
+    user.password = password;
+    //resetToken, resetExpiry ==> reset
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
+    //save
+    await user.save();
+  } catch (error) {
+    return res.status(400).json({
+      message: 'Something went wrong while reset-password',
+      success: false,
+    });
   }
 };
