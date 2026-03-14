@@ -2,8 +2,8 @@ import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 
 //May need if using mobile hotspot while development
-import dns from 'dns/promises';
-dns.setServers(['8.8.8.8', '1.1.1.1']);
+// import dns from 'dns/promises';
+// dns.setServers(['8.8.8.8', '1.1.1.1']);
 
 dotenv.config({});
 const MONGODB_URI = process.env.MONGODB_URI;
